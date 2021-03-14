@@ -114,3 +114,7 @@ dmypy.json
 .pyre/
 
 .ipynb_checkpoints
+
+
+*.pkl
+*.gz
