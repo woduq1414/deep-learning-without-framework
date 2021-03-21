@@ -115,6 +115,7 @@ dmypy.json
 
 .ipynb_checkpoints
 
-
+.idea/
+Untitled.ipynb
 *.pkl
 *.gz
