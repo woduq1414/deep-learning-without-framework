@@ -1,7 +1,7 @@
 # %%
 
-from framework.functions import *
-from framework.gradient import *
+from jjy.framework.functions import *
+from jjy.framework.gradient import *
 
 
 # %%

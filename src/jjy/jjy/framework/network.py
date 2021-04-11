@@ -2,10 +2,10 @@
 import jsonpickle as jsp
 from inspect import currentframe
 
-import framework.initializer as Initializer
-import framework.layer as Layer
-import framework.optimizer as Optimizer
-from framework.functions import *
+import jjy.framework.initializer as Initializer
+import jjy.framework.layer as Layer
+import jjy.framework.optimizer as Optimizer
+from jjy.framework.functions import *
 from tqdm import tqdm
 
 import json

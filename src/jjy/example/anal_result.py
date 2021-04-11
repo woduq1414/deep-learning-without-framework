@@ -2,7 +2,7 @@
 import sys
 
 import matplotlib.pyplot as plt
-from framework.functions import *
+from jjy.framework.functions import *
 
 sys.path.append("../../")
 

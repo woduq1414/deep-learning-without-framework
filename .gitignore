@@ -123,3 +123,9 @@ Untitled.ipynb
 train_data_2021*
 
 *.npz
+
+keras/
+
+setup.py
+
+dog_cat/

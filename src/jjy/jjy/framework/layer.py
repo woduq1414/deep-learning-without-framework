@@ -1,10 +1,10 @@
 # %%
 
 
-import framework.initializer as Initializer
+import jjy.framework.initializer as Initializer
 import numpy as np
-from framework.functions import *
-from framework.gradient import *
+from jjy.framework.functions import *
+from jjy.framework.gradient import *
 
 
 class LayerType:

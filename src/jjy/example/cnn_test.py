@@ -1,12 +1,12 @@
 import sys
-import framework.initializer as Initializer
-import framework.layer as Layer
-import framework.optimizer as Optimizer
-from framework.functions import *
+import jjy.framework.initializer as Initializer
+import jjy.framework.layer as Layer
+import jjy.framework.optimizer as Optimizer
+from jjy.framework.functions import *
 # from functions import *
-from framework.network import MultiLayerNet
+from jjy.framework.network import MultiLayerNet
 
-from dataset.mnist import load_mnist
+from jjy.dataset.mnist import load_mnist
 
 
 def main():
@@ -28,6 +28,7 @@ def main():
     net.add_layer(Layer.Dense(50))
     net.add_layer(Layer.Dropout(0.5))
     net.add_layer(Layer.SoftmaxWithLoss())
+
 
     for k, v in net.params.items():
         print(k, v.shape)

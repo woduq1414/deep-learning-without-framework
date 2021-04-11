@@ -2,13 +2,13 @@
 
 import sys
 
-import framework.layer as Layer
-import framework.optimizer as Optimizer
-import framework.initializer as Initializer
-from framework.functions import *
-from framework.network import MultiLayerNet
-import framework.scaler as Scaler
-from dataset.mnist import load_mnist
+import jjy.framework.layer as Layer
+import jjy.framework.optimizer as Optimizer
+import jjy.framework.initializer as Initializer
+from jjy.framework.functions import *
+from jjy.framework.network import MultiLayerNet
+import jjy.framework.scaler as Scaler
+from jjy.dataset.mnist import load_mnist
 
 import numpy as np
 

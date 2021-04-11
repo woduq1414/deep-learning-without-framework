@@ -20,7 +20,7 @@ key_file = {
 }
 
 # dataset_dir = os.path.dirname(os.path.abspath("__file__"))
-dataset_dir = "C:\\Users\\User\\deep-learning-without-tensorflow\\src\\dataset"
+dataset_dir = os.path.dirname(os.path.realpath(__file__))
 
 save_file = dataset_dir + "/mnist.pkl"
 
@@ -115,9 +115,10 @@ def load_mnist(normalize=True, flatten=True, one_hot_label=False):
     """
     #     print("hello")
 
-    #     if not os.path.exists(save_file):
-    #         print(save_file)
-    #         init_mnist()
+    if not os.path.exists(save_file):
+        print(save_file)
+        init_mnist()
+
 
     with open(save_file, 'rb') as f:
         dataset = pickle.load(f)

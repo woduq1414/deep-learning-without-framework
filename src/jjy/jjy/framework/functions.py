@@ -1,3 +1,4 @@
+
 # %%
 
 import numpy as np
@@ -177,3 +178,7 @@ def make_sample_data_set_regression2():
     t = np.reshape(y, (y.shape[0], 1))
 
     return x, t
+
+def foo():
+    print("hello")
+    return

@@ -2,12 +2,12 @@
 
 import sys
 
-import framework.layer as Layer
-import framework.optimizer as Optimizer
-from framework.functions import *
-from framework.network import MultiLayerNet
-import framework.initializer as Initializer
-from dataset.mnist import load_mnist
+import jjy.framework.layer as Layer
+import jjy.framework.optimizer as Optimizer
+from jjy.framework.functions import *
+from jjy.framework.network import MultiLayerNet
+import jjy.framework.initializer as Initializer
+from jjy.dataset.mnist import load_mnist
 
 import numpy as np
 
