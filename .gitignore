@@ -119,3 +119,7 @@ dmypy.json
 Untitled.ipynb
 *.pkl
 *.gz
+
+train_data_2021*
+
+*.npz

@@ -10,7 +10,7 @@ sys.path.append("../../")
 import numpy as np
 
 import pickle
-with open("train_data_2021-04-04 123752","rb") as fr:
+with open("train_data_2021-04-10 213537.pickle","rb") as fr:
     result = pickle.load(fr)
 
 
@@ -43,16 +43,16 @@ def show_acc():
     plt.plot(x, result["test_acc_list"], label="test_acc", color=color_list[1], marker="o")
 
     for i, v in enumerate(result["test_acc_list"]):
-        plt.text(i, v + 0.02, v,  # 좌표 (x축 = v, y축 = y[0]..y[1], 표시 = y[0]..y[1])
+        plt.text(i, v + 0.0003, v,  # 좌표 (x축 = v, y축 = y[0]..y[1], 표시 = y[0]..y[1])
                  fontsize=9,
                  color='blue',
                  horizontalalignment='center',  # horizontalalignment (left, center, right)
                  verticalalignment='bottom')
-    plt.legend(loc='upper right')
+    plt.legend(loc='lower right')
 
     plt.show()
 
 #
-
+show_loss()
 show_acc()
 

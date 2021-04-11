@@ -1,11 +1,14 @@
 # %%
-
+import jsonpickle as jsp
 from inspect import currentframe
 
 import framework.initializer as Initializer
 import framework.layer as Layer
 import framework.optimizer as Optimizer
 from framework.functions import *
+from tqdm import tqdm
+
+import json
 
 
 def debug_print(arg):
@@ -14,6 +17,7 @@ def debug_print(arg):
     print(frameinfo.f_back.f_lineno, ":", arg)
 
 
+import datetime
 # %%
 
 import sys
@@ -21,7 +25,7 @@ import sys
 sys.path.append("../../")
 
 # %%
-
+import re
 import numpy as np
 from collections import OrderedDict
 
@@ -46,10 +50,17 @@ class MultiLayerNet:
 
         self.pre_channel_num = None
 
+        self.added_layer_list = []
+
     def reset(self):
         pass
 
     def add_layer(self, layer, **kwargs):
+
+        is_direct = True
+        if "is_direct" in kwargs and kwargs["is_direct"] == False:
+            is_direct = False
+
         if not isinstance(layer, Layer.LayerType):
             raise BaseException("Layer required")
 
@@ -69,17 +80,21 @@ class MultiLayerNet:
             else:
                 self.hiddenSizeList.append(input_size)
 
-
             hidden_size = layer.hidden_size
 
             weight_init_std = 0.01
             initializer = layer.initializer
+
+            pre_node_nums = input_size
+
             if isinstance(initializer, Initializer.Std):
                 weight_init_std = initializer.std
             elif isinstance(initializer, Initializer.He):
-                weight_init_std = np.sqrt(2.0 / input_size)
+                weight_init_std = np.sqrt(2.0 / pre_node_nums)
             elif isinstance(initializer, Initializer.Xavier):
-                weight_init_std = np.sqrt(1.0 / input_size)
+                weight_init_std = np.sqrt(1.0 / pre_node_nums)
+
+
 
             self.hiddenSizeList.append(hidden_size)
             #             print(input_size)
@@ -93,9 +108,10 @@ class MultiLayerNet:
             self.prevDenseLayer = layer
 
             if layer.activation is not None:
-                self.add_layer(layer.activation)
+                self.add_layer(layer.activation, is_direct=False)
 
             if self.is_use_dropout:
+                layer_len = len(self.layers)
                 self.layers['Dropout' + str(layer_len)] = Layer.Dropout(self.dropout_ratio)
 
 
@@ -108,24 +124,34 @@ class MultiLayerNet:
 
             if input_size is None and len(self.hiddenSizeList) > 0:
                 input_size = self.hiddenSizeList[-1]
-                print(self.hiddenSizeList)
+                # print(input_size)
+                # print(self.hiddenSizeList)
 
             filter_num = layer.filter_num
 
             weight_init_std = 0.01
             initializer = layer.initializer
+
+            if self.prevConvLayer is None:
+                pre_node_nums = np.prod(layer.filter_size)
+            else:
+                pre_node_nums = self.prevConvLayer.filter_num * np.prod(layer.filter_size)
+
             if isinstance(initializer, Initializer.Std):
                 weight_init_std = initializer.std
             elif isinstance(initializer, Initializer.He):
-                weight_init_std = np.sqrt(2.0 / input_size)
+                weight_init_std = np.sqrt(2.0 / pre_node_nums)
             elif isinstance(initializer, Initializer.Xavier):
-                weight_init_std = np.sqrt(1.0 / input_size)
+                weight_init_std = np.sqrt(1.0 / pre_node_nums)
+
+            # print(pre_node_nums)
 
             # print(layer)
             # print(layer.filter_size, layer.pad, layer.stride, input_size, "mu")
 
-            conv_output_size = (layer.filter_num, (input_size[1] - layer.filter_size[0] + 2 * layer.pad) / layer.stride + 1,
-                                (input_size[2] - layer.filter_size[1] + 2 * layer.pad) / layer.stride + 1)
+            conv_output_size = (
+                layer.filter_num, (input_size[1] - layer.filter_size[0] + 2 * layer.pad) / layer.stride + 1,
+                (input_size[2] - layer.filter_size[1] + 2 * layer.pad) / layer.stride + 1)
             #
             self.hiddenSizeList.append(conv_output_size)
 
@@ -151,7 +177,7 @@ class MultiLayerNet:
             debug_print(input_size)
 
             if layer.activation is not None:
-                self.add_layer(layer.activation)
+                self.add_layer(layer.activation, is_direct=False)
 
             if self.is_use_dropout:
                 self.layers['Dropout' + str(layer_len)] = Layer.Dropout(self.dropout_ratio)
@@ -162,10 +188,11 @@ class MultiLayerNet:
             #             conv_output_size = (input_size - filter_size + 2*filter_pad) / filter_stride + 1
 
             conv_output_size = self.hiddenSizeList[-1]
-            print("pool", conv_output_size)
+
             #             print(conv_output_size)
             pool_output_size = (
-                prevLayer.filter_num , int((conv_output_size[1] / layer.stride)) , int((conv_output_size[2] / layer.stride)) )
+                prevLayer.filter_num, int((conv_output_size[1] / layer.stride)),
+                int((conv_output_size[2] / layer.stride)))
             # print("yaya", conv_output_size, pool_output_size)
 
             self.hiddenSizeList.append(pool_output_size)
@@ -198,6 +225,9 @@ class MultiLayerNet:
                 gamma=np.ones(self.hiddenSizeList[-1]),
                 beta=np.zeros(self.hiddenSizeList[-1])
             )
+        # print(layer, self.hiddenSizeList)
+        if is_direct:
+            self.added_layer_list.append(layer)
 
     def predict(self, x, train_flg=False):
         for layer in self.layers.values():
@@ -286,7 +316,10 @@ class MultiLayerNet:
 
         print_epoch = 1
         if "print_epoch" in kwargs:
-            if 0 < kwargs["print_epoch"]:
+            if kwargs["print_epoch"] is None:
+                print_epoch = 9999999999999999999
+
+            elif kwargs["print_epoch"] > 0:
                 print_epoch = kwargs["print_epoch"]
             else:
                 raise "err"
@@ -298,12 +331,16 @@ class MultiLayerNet:
             else:
                 raise "err"
 
+        is_use_progress_bar = False
+        if "is_use_progress_bar" in kwargs:
+            is_use_progress_bar = kwargs["is_use_progress_bar"]
+
         e_x_train, e_x_test, e_t_train, e_t_test = x_train, x_test, t_train, t_test
 
         if evaluate_limit is not None:
             e_x_train, e_x_test, e_t_train, e_t_test = x_train[:evaluate_limit], x_test[:evaluate_limit], t_train[
                                                                                                           :evaluate_limit], t_test[
-                                                                                                                           :evaluate_limit]
+                                                                                                                            :evaluate_limit]
 
         output_type = "regression"
         if type(self.lastLayer) == type(Layer.SoftmaxWithLoss()):
@@ -325,9 +362,17 @@ class MultiLayerNet:
             print("epoch | train_acc | test_acc")
 
         cnt = 1
-        for i in range(iters_num):
-            if i % 1 == 0:
-                print("step", i)
+
+        if is_use_progress_bar:
+            iterator = tqdm(range(iters_num), mininterval=1)
+        else:
+            iterator = range(iters_num)
+
+        for i in iterator:
+            # with nostdout():
+            # with redirect_to_tqdm():
+
+            # print(i)
 
             batch_mask = np.random.choice(train_size, batch_size)
             x_batch = x_train[batch_mask]
@@ -353,7 +398,8 @@ class MultiLayerNet:
                     if output_type == "regression":
                         print(f"epoch {cnt}:", train_loss_list[-1])
                     else:
-                        print(f"epoch {cnt}:", format(train_acc, ".4f"), " | ", format(test_acc, ".4f"))
+                        # log.info(f"epoch {cnt}:")
+                        print(f"epoch {cnt}:", format(train_acc, ".4f"), " | ", format(test_acc, ".4f"), flush=True)
 
                 cnt += 1
 
@@ -370,6 +416,62 @@ class MultiLayerNet:
             "train_acc_list": train_acc_list,
             "test_acc_list": test_acc_list
         }
+
+    def save_model(self, path=None):
+        save_data = OrderedDict()
+        params = self.params
+
+        save_data["NetConfig"] = {
+            "weight_decay_lambda": self.weight_decay_lambda,
+            "is_use_dropout": self.is_use_dropout,
+            "dropout_ratio": self.dropout_ratio
+        }
+        layer_info = []
+        for layer in self.added_layer_list:
+            s = jsp.encode(layer)
+            layer_info.append(s)
+
+        save_data["LayerInfo"] = layer_info
+
+        for layer_idx, layer in enumerate(self.layers):
+
+            if isinstance(layer, Layer.BatchNormalization):
+                params[f"BN_m{layer_idx}"] = layer.running_mean
+                params[f"BN_v{layer_idx}"] = layer.running_var
+
+        save_data["Params"] = params
+
+        if path is None:
+            path = f"train_weight_{str(datetime.datetime.now())[:-7].replace(':', '')}.npz"
+
+        np.savez_compressed(path, **save_data)
+        print(f"Weight was saved at {path}")
+
+    def load_model(self, path):
+
+        print(f"Loading Model... {path}")
+        load_data = np.load(path, allow_pickle=True)
+        other_config_data = dict(load_data.get("NetConfig").item())
+        self.__init__(**other_config_data)
+        layer_info = load_data.get("LayerInfo")
+        for layer_encoded in layer_info:
+            layer = jsp.decode(layer_encoded)
+            self.add_layer(layer)
+
+        self.params = load_data.get("Params").item()
+
+        for param_name, param_value in self.params.items():
+            layer_idx = int(re.findall(r'[0-9]+', param_name)[0])
+            param_kind = re.sub(r'[0-9]+', '', param_name)
+            target_layer = list(self.layers.items())[layer_idx][1]
+            if param_kind == "W":
+                target_layer.W = param_value
+            elif param_kind == "b":
+                target_layer.b = param_value
+            elif param_kind == "BN_m":
+                target_layer.running_mean = param_value
+            elif param_kind == "BN_v":
+                target_layer.running_var = param_value
 
 # %%
 

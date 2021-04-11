@@ -6,8 +6,7 @@ import framework.layer as Layer
 import framework.optimizer as Optimizer
 from framework.functions import *
 from framework.network import MultiLayerNet
-
-
+import framework.initializer as Initializer
 from dataset.mnist import load_mnist
 
 import numpy as np
@@ -56,27 +55,44 @@ x_data = np.append(x_train, x_test, axis=0)
 t_data = np.append(t_train, t_test, axis=0)
 
 net = MultiLayerNet(is_use_dropout=True, dropout_ratio=0.2)
-net.add_layer(Layer.Dense(64, input_size=784))
+net.add_layer(Layer.Dense(30, input_size=784, initializer=Initializer.He()))
 net.add_layer(Layer.BatchNormalization())
 net.add_layer(Layer.Relu())
-net.add_layer(Layer.Dense(64))
+net.add_layer(Layer.Dense(64), initializer=Initializer.He())
 net.add_layer(Layer.BatchNormalization())
 net.add_layer(Layer.Relu())
-net.add_layer(Layer.Dense(64))
+net.add_layer(Layer.Dense(64), initializer=Initializer.He())
 net.add_layer(Layer.BatchNormalization())
 net.add_layer(Layer.Relu())
-net.add_layer(Layer.Dense(64))
+net.add_layer(Layer.Dense(64), initializer=Initializer.He())
 net.add_layer(Layer.BatchNormalization())
 net.add_layer(Layer.Relu())
-net.add_layer(Layer.Dense(64))
+net.add_layer(Layer.Dense(64), initializer=Initializer.He())
 net.add_layer(Layer.BatchNormalization())
 net.add_layer(Layer.Relu())
-net.add_layer(Layer.Dense(10, activation=Layer.SoftmaxWithLoss()))
+net.add_layer(Layer.Dense(10, initializer=Initializer.He()
+                          , activation=Layer.SoftmaxWithLoss()))
 
 result = net.train(
-    x_train, t_train, x_test, t_test, batch_size=300, iters_num=4000, print_epoch=1,
+    x_train, t_train, x_test, t_test, batch_size=300, iters_num=10000, print_epoch=1, is_use_progress_bar=True,
     optimizer=Optimizer.Adam(lr=0.01))
 
 print("done!")
 
+print(net.params)
+# print(net.layers)
 
+
+net.save_model()
+
+# net.load_model("weight.npz")
+
+print("============================================")
+
+# net2 = MultiLayerNet()
+# net2.load_model("weight.npz")
+#
+# # print(net.layers)
+# # print(net.layers["BatchNormal2"].running_mean)
+#
+# print(net2.accuracy(x_test, t_test))
