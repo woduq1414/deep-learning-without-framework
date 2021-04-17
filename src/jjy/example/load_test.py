@@ -1,13 +1,14 @@
-from framework.network import MultiLayerNet
+from jjy.framework.network import MultiLayerNet
 import random
-from dataset.mnist import load_mnist
+from jjy.dataset.mnist import load_mnist
 import numpy as np
 import matplotlib.pyplot as plt
 
 (x_train, t_train), (x_test, t_test) = load_mnist(flatten=False)
 
 net = MultiLayerNet()
-net.load_model("train_weight_2021-04-10 213538.npz")
+net.load_model("train_weight_2021-04-17 135013.npz")
+
 
 for i in range(5):
     img_idx = random.randrange(0, 10000)

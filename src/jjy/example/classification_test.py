@@ -74,7 +74,8 @@ net.add_layer(Layer.Dense(10, initializer=Initializer.He()
                           , activation=Layer.SoftmaxWithLoss()))
 
 result = net.train(
-    x_train, t_train, x_test, t_test, batch_size=300, iters_num=10000, print_epoch=1, is_use_progress_bar=True,
+    x_train, t_train, x_test, t_test, batch_size=300, iters_num=1000, print_epoch=1, is_use_progress_bar=True,
+    save_model_each_epoch=1, save_model_path="./dog_cat_result",
     optimizer=Optimizer.Adam(lr=0.01))
 
 print("done!")
@@ -83,7 +84,8 @@ print(net.params)
 # print(net.layers)
 
 
-net.save_model()
+
+# net.save_model()
 
 # net.load_model("weight.npz")
 

@@ -1,6 +1,6 @@
 # %%
 
-
+import jjy.framework.cuda as cuda
 import jjy.framework.initializer as Initializer
 import numpy as np
 from jjy.framework.functions import *
@@ -8,6 +8,7 @@ from jjy.framework.gradient import *
 
 
 class LayerType:
+
     pass
 
 
@@ -65,6 +66,10 @@ class Sigmoid(LayerType):
         return dx
 
 
+
+
+
+
 class Affine(LayerType):
     def __init__(self, W, b):
         self.W = W
@@ -96,6 +101,35 @@ class Affine(LayerType):
 
         dx = dx.reshape(*self.original_x_shape)  # 입력 데
         return dx
+
+
+class SigmoidWithLoss(LayerType):
+    def __init__(self):
+        self.y = None
+        self.activation = True
+        self.loss = None
+        self.t = None
+
+    def forward(self, x, t):
+        self.t = t
+        self.y = sigmoid(x)
+        self.loss = cross_entropy_error()
+        return self.loss
+
+    def backward(self, dout):
+        # dx = dout * (1.0 - self.out) * self.out
+
+        # return dx
+        batch_size = self.t.shape[0]
+        if self.t.size == self.y.size:  # 정답 레이블이 원-핫 인코딩 형태일 때
+            dx = (self.y - self.t) / batch_size
+        else:
+            dx = self.y.copy()
+            dx[np.arange(batch_size), self.t] -= 1
+            dx = dx / batch_size
+
+        return dx
+
 
 
 class SoftmaxWithLoss(LayerType):
@@ -310,6 +344,9 @@ class Convolution(LayerType):
         self.db = None
 
     def forward(self, x):
+
+
+
         FN, C, FH, FW = self.W.shape
 
         N, C, H, W = x.shape

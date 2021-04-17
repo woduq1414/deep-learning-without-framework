@@ -7,7 +7,7 @@ import jjy.framework.layer as Layer
 import jjy.framework.optimizer as Optimizer
 from jjy.framework.functions import *
 from tqdm import tqdm
-
+import os
 import json
 
 
@@ -37,6 +37,8 @@ class MultiLayerNet:
 
     def __init__(self, weight_decay_lambda=0, is_use_dropout=False, dropout_ratio=0.5):
 
+        self.is_gpu = False
+
         self.weight_decay_lambda = weight_decay_lambda
         self.is_use_dropout = is_use_dropout
         self.dropout_ratio = dropout_ratio
@@ -51,6 +53,9 @@ class MultiLayerNet:
         self.pre_channel_num = None
 
         self.added_layer_list = []
+
+    def to_gpu(self):
+        self.is_gpu = True
 
     def reset(self):
         pass
@@ -93,8 +98,6 @@ class MultiLayerNet:
                 weight_init_std = np.sqrt(2.0 / pre_node_nums)
             elif isinstance(initializer, Initializer.Xavier):
                 weight_init_std = np.sqrt(1.0 / pre_node_nums)
-
-
 
             self.hiddenSizeList.append(hidden_size)
             #             print(input_size)
@@ -150,8 +153,8 @@ class MultiLayerNet:
             # print(layer.filter_size, layer.pad, layer.stride, input_size, "mu")
 
             conv_output_size = (
-                layer.filter_num, (input_size[1] - layer.filter_size[0] + 2 * layer.pad) / layer.stride + 1,
-                (input_size[2] - layer.filter_size[1] + 2 * layer.pad) / layer.stride + 1)
+                layer.filter_num, int((input_size[1] - layer.filter_size[0] + 2 * layer.pad) / layer.stride + 1),
+                int((input_size[2] - layer.filter_size[1] + 2 * layer.pad) / layer.stride + 1))
             #
             self.hiddenSizeList.append(conv_output_size)
 
@@ -220,10 +223,12 @@ class MultiLayerNet:
 
 
         elif isinstance(layer, Layer.BatchNormalization):
-
+            # print(self.hiddenSizeList)
             self.layers[f"BatchNormal{layer_len}"] = Layer.BatchNormalization(
-                gamma=np.ones(self.hiddenSizeList[-1]),
-                beta=np.zeros(self.hiddenSizeList[-1])
+                gamma=np.ones(np.prod(self.hiddenSizeList[-1])),
+                beta=np.zeros(np.prod(self.hiddenSizeList[-1])),
+                running_mean=layer.running_mean,
+                running_var=layer.running_var
             )
         # print(layer, self.hiddenSizeList)
         if is_direct:
@@ -300,40 +305,34 @@ class MultiLayerNet:
             else:
                 raise "err"
 
-        iters_num = 10000
-        if "iters_num" in kwargs:
-            if 0 < kwargs["iters_num"]:
-                iters_num = kwargs["iters_num"]
-            else:
-                raise "err"
+        iters_num = kwargs.get("iters_num", None)
+        if iters_num is None:
+            return ValueError("iters_num must be set")
+        elif not (iters_num > 0):
+            raise ValueError("iters_num must be > 0 ")
 
-        batch_size = 100
-        if "batch_size" in kwargs:
-            if 0 < kwargs["batch_size"]:
-                batch_size = kwargs["batch_size"]
-            else:
-                raise "err"
+        batch_size = kwargs.get("batch_size", None)
+        if batch_size is None:
+            return ValueError("batch_size must be set")
+        elif not (batch_size > 0):
+            raise ValueError("batch_size must be > 0")
 
-        print_epoch = 1
-        if "print_epoch" in kwargs:
-            if kwargs["print_epoch"] is None:
-                print_epoch = 9999999999999999999
+        print_epoch = kwargs.get("print_epoch", 1)
+        if print_epoch is None:
+            print_epoch = 9999999999999999999
+        elif not (print_epoch > 0):
+            raise ValueError("print_epoch must be > 0")
 
-            elif kwargs["print_epoch"] > 0:
-                print_epoch = kwargs["print_epoch"]
-            else:
-                raise "err"
+        save_model_each_epoch = kwargs.get("save_model_each_epoch", 1)
+        if save_model_each_epoch is None:
+            save_model_each_epoch = 9999999999999999999
+        elif not (save_model_each_epoch > 0):
+            raise ValueError("save_model_each_epoch must be > 0")
 
-        evaluate_limit = None
-        if "evaluate_limit" in kwargs:
-            if 0 < kwargs["evaluate_limit"]:
-                evaluate_limit = kwargs["evaluate_limit"]
-            else:
-                raise "err"
+        evaluate_limit = kwargs.get("evaluate_limit", None)
+        save_model_path = kwargs.get("save_model_path", "")
 
-        is_use_progress_bar = False
-        if "is_use_progress_bar" in kwargs:
-            is_use_progress_bar = kwargs["is_use_progress_bar"]
+        is_use_progress_bar = kwargs.get("is_use_progress_bar", False)
 
         e_x_train, e_x_test, e_t_train, e_t_test = x_train, x_test, t_train, t_test
 
@@ -389,6 +388,10 @@ class MultiLayerNet:
 
             if int(cnt * iter_per_epoch) == i:
 
+                if save_model_each_epoch is not None and cnt % save_model_each_epoch == 0:
+                    self.save_model(
+                        save_model_path + f"/train_weight_{str(datetime.datetime.now())[:-7].replace(':', '')}.npz")
+
                 if cnt % print_epoch == 0:
 
                     train_acc = self.accuracy(e_x_train, e_t_train)
@@ -428,21 +431,31 @@ class MultiLayerNet:
         }
         layer_info = []
         for layer in self.added_layer_list:
-            s = jsp.encode(layer)
+            t = layer
+            if isinstance(t, Layer.SoftmaxWithLoss):
+                t = Layer.SoftmaxWithLoss()
+            elif isinstance(t, Layer.IdentityWithLoss):
+                t = Layer.IdentityWithLoss()
+            elif isinstance(t, Layer.BatchNormalization):
+                t = Layer.BatchNormalization(running_mean=t.running_mean, running_var=t.running_var)
+            elif isinstance(t, Layer.Pooling):
+                t = Layer.Pooling(t.pool_h, t.pool_w, t.stride, t.pad)
+
+            s = jsp.encode(t)
             layer_info.append(s)
 
         save_data["LayerInfo"] = layer_info
-
-        for layer_idx, layer in enumerate(self.layers):
-
-            if isinstance(layer, Layer.BatchNormalization):
-                params[f"BN_m{layer_idx}"] = layer.running_mean
-                params[f"BN_v{layer_idx}"] = layer.running_var
+        # for layer_idx, layer in enumerate(self.layers.values()):
+        #     if isinstance(layer, Layer.BatchNormalization):
+        #         params[f"BN_m{layer_idx}"] = layer.running_mean
+        #         params[f"BN_v{layer_idx}"] = layer.running_var
 
         save_data["Params"] = params
 
         if path is None:
             path = f"train_weight_{str(datetime.datetime.now())[:-7].replace(':', '')}.npz"
+        # print(save_data)
+
 
         np.savez_compressed(path, **save_data)
         print(f"Weight was saved at {path}")
@@ -461,6 +474,8 @@ class MultiLayerNet:
         self.params = load_data.get("Params").item()
 
         for param_name, param_value in self.params.items():
+            print(param_name)
+
             layer_idx = int(re.findall(r'[0-9]+', param_name)[0])
             param_kind = re.sub(r'[0-9]+', '', param_name)
             target_layer = list(self.layers.items())[layer_idx][1]
